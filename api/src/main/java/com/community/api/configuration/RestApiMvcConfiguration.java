@@ -22,11 +22,9 @@ import org.broadleafcommerce.common.web.controller.annotation.FrameworkRestContr
 import org.broadleafcommerce.common.web.filter.FilterOrdered;
 import org.broadleafcommerce.common.web.filter.IgnorableOpenEntityManagerInViewFilter;
 import org.springdoc.core.configuration.SpringDocConfiguration;
-import org.springdoc.core.configuration.SpringDocUIConfiguration;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springdoc.core.customizers.SpringDocCustomizers;
 import org.springdoc.core.properties.SpringDocConfigProperties;
-import org.springdoc.core.properties.SwaggerUiConfigProperties;
 import org.springdoc.core.providers.ObjectMapperProvider;
 import org.springdoc.core.providers.SpringDocProviders;
 import org.springdoc.core.service.AbstractRequestService;
@@ -71,7 +69,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -131,10 +128,6 @@ public class RestApiMvcConfiguration extends BroadleafRestApiMvcConfiguration {
             return new ObjectMapperProvider(springDocConfigProperties);
         }
 
-        @Bean
-        SpringDocUIConfiguration SpringDocUIConfiguration(Optional<SwaggerUiConfigProperties> optionalSwaggerUiConfigProperties){
-            return new SpringDocUIConfiguration(optionalSwaggerUiConfigProperties);
-        }
     }
 
     @Configuration
