@@ -4,18 +4,28 @@ ROOT_DIR := $(CURDIR)
 SITE_DIR := $(ROOT_DIR)/site
 MAVEN := $(ROOT_DIR)/mvnw
 JAVA_HOME ?= $(shell brew --prefix openjdk@17 2>/dev/null)/libexec/openjdk.jdk/Contents/Home
+TMP_DIR := $(shell echo $${TMPDIR:-/tmp})
+HSQL_DIR := $(TMP_DIR)/broadleaf-hsqldb
+SOLR_DIR := $(TMP_DIR)/solr-8.11.3
+SOLR_HOME := $(SOLR_DIR)/solr-8.11.3
+SOLR_ARCHIVE := $(TMP_DIR)/solr-8.11.3.tgz
 SOLR_DOWNLOAD_URL ?= https://www.apache.si/lucene/solr/%s/solr-%s.%s
-SPRING_ARGS ?= --blPU.hibernate.hbm2ddl.auto=update --solr.server.downloadUrl=$(SOLR_DOWNLOAD_URL)
+# Seed demo catalog/CMS data on first run; use update when the HSQL files already exist.
+DDL_AUTO := $(if $(wildcard $(HSQL_DIR)/broadleaf.script),update,create)
+SPRING_ARGS ?= --blPU.hibernate.hbm2ddl.auto=$(DDL_AUTO) --solr.server.downloadUrl=$(SOLR_DOWNLOAD_URL)
 APP_PORTS := 8000 8080 8443 8983
 
-.PHONY: help build start stop status check-java
+.PHONY: help build start stop status check-java clean-data bootstrap-solr reset
 
 help:
 	@echo "Available targets:"
-	@echo "  make start   Start the storefront at https://localhost:8443"
-	@echo "  make stop    Stop the storefront and embedded Solr processes"
-	@echo "  make status  Show processes listening on app/Solr ports"
-	@echo "  make build   Build all Maven modules without running tests"
+	@echo "  make start          Start the storefront at https://localhost:8443"
+	@echo "  make stop           Stop the storefront and embedded Solr processes"
+	@echo "  make status         Show processes listening on app/Solr ports"
+	@echo "  make build          Build all Maven modules without running tests"
+	@echo "  make clean-data     Remove embedded HSQLDB and Solr temp directories"
+	@echo "  make bootstrap-solr Ensure a complete Solr install (fixes broken Jetty modules)"
+	@echo "  make reset          clean-data, bootstrap-solr, then start with fresh demo data"
 
 check-java:
 	@if [ -z "$(JAVA_HOME)" ] || [ ! -x "$(JAVA_HOME)/bin/java" ]; then \
@@ -27,7 +37,24 @@ check-java:
 build: check-java
 	@JAVA_HOME="$(JAVA_HOME)" PATH="$(JAVA_HOME)/bin:$$PATH" "$(MAVEN)" clean install -DskipTests
 
-start: check-java
+clean-data:
+	@rm -rf "$(HSQL_DIR)" "$(SOLR_DIR)"
+
+bootstrap-solr:
+	@if [ ! -f "$(SOLR_HOME)/server/modules/http.mod" ]; then \
+		echo "Installing Solr 8.11.3 to $(SOLR_DIR)..."; \
+		rm -rf "$(SOLR_DIR)"; \
+		mkdir -p "$(SOLR_DIR)"; \
+		if [ ! -f "$(SOLR_ARCHIVE)" ]; then \
+			curl -fsSL "https://www.apache.si/lucene/solr/8.11.3/solr-8.11.3.tgz" -o "$(SOLR_ARCHIVE)"; \
+		fi; \
+		tar -xzf "$(SOLR_ARCHIVE)" -C "$(SOLR_DIR)"; \
+	fi
+
+reset: clean-data bootstrap-solr start
+
+start: check-java bootstrap-solr
+	@echo "Using blPU.hibernate.hbm2ddl.auto=$(DDL_AUTO)"
 	@cd "$(SITE_DIR)" && JAVA_HOME="$(JAVA_HOME)" PATH="$(JAVA_HOME)/bin:$$PATH" "$(MAVEN)" spring-boot:run -Dspring-boot.run.arguments="$(SPRING_ARGS)"
 
 stop:
